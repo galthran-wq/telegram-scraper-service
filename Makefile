@@ -4,7 +4,7 @@ install:
 	uv sync
 
 run:
-	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 
 test:
 	uv run pytest
@@ -21,7 +21,7 @@ pre-commit:
 	uv run pre-commit install
 
 docker-build:
-	docker build -t python-service-template .
+	docker build -t telegram-scraper-service .
 
 docker-run:
-	docker run -p 8000:8000 python-service-template
+	docker run -p 8001:8001 telegram-scraper-service
