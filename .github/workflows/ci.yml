@@ -9,6 +9,9 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      TELEGRAM_API_ID: "0"
+      TELEGRAM_API_HASH: "dummy"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
