@@ -76,9 +76,10 @@ def _serialize_message(message: Any) -> dict[str, Any]:
 
 async def _resolve_entity(client: TelegramClient, channel: str) -> Any:
     try:
-        return await client.get_entity(int(channel))
+        channel_id = int(channel)
     except (ValueError, TypeError):
         return await client.get_entity(channel)
+    return await client.get_entity(channel_id)
 
 
 async def get_channel_posts(
@@ -148,7 +149,7 @@ async def search_posts(
 
     next_cursor = None
     next_rate = getattr(r, "next_rate", None)
-    if next_rate and r.messages:
+    if next_rate is not None and r.messages:
         last_msg = r.messages[-1]
         last_peer_id = get_peer_id(last_msg.peer_id)
         last_chat = entities.get(last_peer_id)
