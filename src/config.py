@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     port: int = 8001
     log_level: str = "info"
     cors_origins: list[str] = ["*"]
+    metrics_enabled: bool = True
 
     telegram_api_id: int
     telegram_api_hash: str
