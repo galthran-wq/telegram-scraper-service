@@ -1,4 +1,10 @@
-# Python Service Template
+# Telegram Scraper Service
+
+[![CI](https://github.com/galthran-wq/telegram-scraper-service/actions/workflows/ci.yml/badge.svg)](https://github.com/galthran-wq/telegram-scraper-service/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/galthran-wq/telegram-scraper-service/badge.svg?branch=master)](https://coveralls.io/github/galthran-wq/telegram-scraper-service?branch=master)
+![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![mypy](https://img.shields.io/badge/type_checker-mypy-blue)](https://mypy-lang.org/)
 
 Minimal production-ready Python microservice template.
 
@@ -8,6 +14,7 @@ Minimal production-ready Python microservice template.
 - **uv** — package manager
 - **Pydantic v2** — validation and settings
 - **structlog** — structured logging
+- **Prometheus** — metrics via prometheus-fastapi-instrumentator
 - **pytest + httpx** — testing
 - **ruff** — linting and formatting
 - **mypy** — type checking
@@ -26,7 +33,7 @@ make run
 |---|---|
 | `make install` | Install dependencies |
 | `make run` | Run dev server with hot reload |
-| `make test` | Run tests |
+| `make test` | Run tests with coverage |
 | `make lint` | Run ruff + mypy |
 | `make format` | Auto-format code |
 | `make pre-commit` | Install pre-commit hooks |
@@ -37,7 +44,7 @@ make run
 
 ```
 src/
-├── main.py           — app factory + structlog config
+├── main.py           — app factory, structlog config, Prometheus setup
 ├── config.py         — pydantic-settings based configuration
 ├── dependencies.py   — FastAPI dependency injection providers
 ├── api/
@@ -47,5 +54,5 @@ src/
 ├── services/         — business logic layer
 └── core/
     ├── exceptions.py — custom exceptions + handlers
-    └── middleware.py  — CORS, request logging
+    └── middleware.py  — CORS, request logging, request ID
 ```
