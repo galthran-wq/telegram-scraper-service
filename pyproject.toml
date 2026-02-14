@@ -1,5 +1,5 @@
 [project]
-name = "python-service-template"
+name = "telegram-scraper-service"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -7,6 +7,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "pydantic-settings>=2.7.0",
     "structlog>=24.4.0",
+    "telethon",
 ]
 
 [dependency-groups]
@@ -35,7 +36,13 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = "telethon.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+addopts = "-m 'not integration'"
+markers = ["integration: requires real Telegram sessions"]

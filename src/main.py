@@ -9,6 +9,7 @@ from src.api.router import router
 from src.config import settings
 from src.core.exceptions import register_exception_handlers
 from src.core.middleware import register_middleware
+from src.dependencies import close_session_pool, init_session_pool
 
 
 def configure_logging() -> None:
@@ -31,7 +32,9 @@ def configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
+    await init_session_pool()
     yield
+    await close_session_pool()
 
 
 def create_app() -> FastAPI:
