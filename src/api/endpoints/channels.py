@@ -4,11 +4,13 @@ from fastapi import APIRouter, HTTPException, Query
 from src.core.retry import with_retry
 from src.schemas.telegram import (
     ChannelFullInfo,
+    ChannelPhotosResponse,
     ChannelPostsResponse,
     PostCommentsResponse,
 )
 from src.services.telegram import (
     get_channel_info,
+    get_channel_photos,
     get_channel_posts,
     get_post_comments,
     search_channel_messages,
@@ -68,6 +70,24 @@ async def post_comments(
         raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error("post_comments_error", channel=channel, post_id=post_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{channel}/photos", response_model=ChannelPhotosResponse)
+async def channel_photos(
+    channel: str,
+    offset_id: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=50),
+) -> ChannelPhotosResponse:
+    try:
+        messages = await with_retry(get_channel_photos, channel, offset_id=offset_id, limit=limit)
+        return ChannelPhotosResponse(messages=messages, count=len(messages))
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+    except Exception as e:
+        logger.error("channel_photos_error", channel=channel, error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

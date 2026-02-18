@@ -64,6 +64,15 @@ class SearchChannelsResponse(BaseModel):
     count: int
 
 
+class PhotoMessageSchema(MessageSchema):
+    photo_base64: str
+
+
+class ChannelPhotosResponse(BaseModel):
+    messages: list[PhotoMessageSchema]
+    count: int
+
+
 class ChannelFullInfo(BaseModel):
     id: int
     title: str | None = None
