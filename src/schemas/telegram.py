@@ -73,6 +73,18 @@ class ChannelPhotosResponse(BaseModel):
     count: int
 
 
+class ProfilePhotoSchema(BaseModel):
+    index: int
+    date: datetime | None = None
+    photo_base64: str
+
+
+class UserProfilePhotosResponse(BaseModel):
+    user_id: str
+    photos: list[ProfilePhotoSchema]
+    count: int
+
+
 class ChannelFullInfo(BaseModel):
     id: int
     title: str | None = None

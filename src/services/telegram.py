@@ -245,6 +245,29 @@ async def get_channel_photos(
     return results
 
 
+async def get_user_profile_photos(
+    client: TelegramClient,
+    user: str,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Download all profile photos for a user as base64."""
+    logger.info("get_user_profile_photos", user=user, limit=limit)
+    entity = await _resolve_entity(client, user)
+    photos = await client.get_profile_photos(entity, limit=limit)
+    results = []
+    for i, photo in enumerate(photos):
+        photo_bytes = await client.download_media(photo, bytes)
+        if not photo_bytes:
+            continue
+        results.append({
+            "index": i,
+            "date": photo.date.isoformat() if photo.date else None,
+            "photo_base64": base64.b64encode(photo_bytes).decode(),
+        })
+    logger.info("get_user_profile_photos_done", user=user, count=len(results))
+    return results
+
+
 async def get_channel_info(
     client: TelegramClient,
     channel: str,
