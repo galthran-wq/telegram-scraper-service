@@ -237,10 +237,12 @@ async def get_channel_photos(
         photo_bytes = await client.download_media(message, bytes)
         if not photo_bytes:
             continue
-        results.append({
-            **_serialize_message(message),
-            "photo_base64": base64.b64encode(photo_bytes).decode(),
-        })
+        results.append(
+            {
+                **_serialize_message(message),
+                "photo_base64": base64.b64encode(photo_bytes).decode(),
+            }
+        )
     logger.info("get_channel_photos_done", channel=channel, count=len(results))
     return results
 
@@ -259,11 +261,13 @@ async def get_user_profile_photos(
         photo_bytes = await client.download_media(photo, bytes)
         if not photo_bytes:
             continue
-        results.append({
-            "index": i,
-            "date": photo.date.isoformat() if photo.date else None,
-            "photo_base64": base64.b64encode(photo_bytes).decode(),
-        })
+        results.append(
+            {
+                "index": i,
+                "date": photo.date.isoformat() if photo.date else None,
+                "photo_base64": base64.b64encode(photo_bytes).decode(),
+            }
+        )
     logger.info("get_user_profile_photos_done", user=user, count=len(results))
     return results
 
