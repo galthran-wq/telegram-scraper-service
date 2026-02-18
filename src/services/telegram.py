@@ -8,6 +8,7 @@ from telethon.tl.functions.channels import GetFullChannelRequest, SearchPostsReq
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import (
     Channel,
+    InputMessagesFilterPhotos,
     InputPeerChannel,
     InputPeerEmpty,
     User,
@@ -231,7 +232,12 @@ async def get_channel_photos(
     logger.info("get_channel_photos", channel=channel, offset_id=offset_id, limit=limit)
     entity = await _resolve_entity(client, channel)
     results = []
-    async for message in client.iter_messages(entity, limit=limit, offset_id=offset_id):
+    async for message in client.iter_messages(
+        entity,
+        limit=limit,
+        offset_id=offset_id,
+        filter=InputMessagesFilterPhotos,
+    ):
         if not message.media or type(message.media).__name__ != "MessageMediaPhoto":
             continue
         photo_bytes = await client.download_media(message, bytes)
