@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     telegram_api_id: int
     telegram_api_hash: str
     sessions_dir: str = "/app/sessions"
+    proxy: str | None = None
 
 
 settings = Settings()

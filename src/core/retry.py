@@ -10,6 +10,7 @@ from telethon.errors import (
     UserBannedInChannelError,
     UserDeactivatedBanError,
 )
+from telethon.errors.rpcerrorlist import AuthKeyDuplicatedError
 
 from src.dependencies import get_session_pool
 
@@ -37,10 +38,21 @@ async def with_retry(
             raise HTTPException(status_code=503, detail="No telegram sessions available")
         try:
             return await func(client, *args, **kwargs)
+        except (ConnectionError, OSError) as e:
+            logger.warning("connection_lost", error=str(e), attempt=attempt, func=func.__name__)
+            reconnected = await pool.reconnect(client)
+            if reconnected:
+                try:
+                    return await func(client, *args, **kwargs)
+                except Exception:
+                    pass
+            else:
+                await pool.remove_client(client)
+            last_error = e
         except FloodWaitError as e:
             logger.warning("flood_wait", seconds=e.seconds, attempt=attempt, func=func.__name__)
             last_error = e
-        except (UserDeactivatedBanError, AuthKeyUnregisteredError) as e:
+        except (UserDeactivatedBanError, AuthKeyUnregisteredError, AuthKeyDuplicatedError) as e:
             logger.error(
                 "session_dead",
                 error_type=type(e).__name__,
@@ -56,8 +68,10 @@ async def with_retry(
             last_error = e
     if isinstance(last_error, FloodWaitError):
         raise HTTPException(status_code=429, detail=f"Rate limited, retry after {last_error.seconds}s")
-    if isinstance(last_error, (UserDeactivatedBanError, AuthKeyUnregisteredError)):
+    if isinstance(last_error, (UserDeactivatedBanError, AuthKeyUnregisteredError, AuthKeyDuplicatedError)):
         raise HTTPException(status_code=403, detail=f"All sessions deauthorized: {type(last_error).__name__}")
     if isinstance(last_error, UserBannedInChannelError):
         raise HTTPException(status_code=403, detail="Account banned in this channel")
+    if isinstance(last_error, (ConnectionError, OSError)):
+        raise HTTPException(status_code=502, detail="Telegram connection failed — all retry attempts exhausted")
     raise HTTPException(status_code=500, detail=str(last_error))

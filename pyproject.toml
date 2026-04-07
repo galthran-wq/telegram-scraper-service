@@ -9,6 +9,7 @@ dependencies = [
     "structlog>=24.4.0",
     "prometheus-fastapi-instrumentator>=7.0.0",
     "telethon",
+    "python-socks[asyncio]",
 ]
 
 [dependency-groups]
