@@ -1,7 +1,10 @@
 import asyncio
+import base64
 import contextlib
+import ipaddress
 import os
 import random
+import struct
 from collections import deque
 from datetime import UTC, datetime
 from itertools import cycle
@@ -19,6 +22,25 @@ logger = structlog.get_logger()
 STRING_SESSION_EXT = ".stringsession"
 SQLITE_SESSION_EXT = ".session"
 EVICTION_LOG_SIZE = 20
+AUTH_KEY_BYTES = 256
+DC_IP = {
+    1: "149.154.175.53",
+    2: "149.154.167.51",
+    3: "149.154.175.100",
+    4: "149.154.167.91",
+    5: "91.108.56.130",
+}
+
+
+def encode_string_session(auth_key_hex: str, dc_id: int) -> str:
+    if dc_id not in DC_IP:
+        raise ValueError(f"Unknown dc_id: {dc_id}")
+    auth_key = bytes.fromhex(auth_key_hex)
+    if len(auth_key) != AUTH_KEY_BYTES:
+        raise ValueError(f"auth_key must be exactly {AUTH_KEY_BYTES} bytes ({AUTH_KEY_BYTES * 2} hex chars)")
+    ip = ipaddress.ip_address(DC_IP[dc_id]).packed
+    payload = struct.pack(f">B{len(ip)}sH256s", dc_id, ip, 443, auth_key)
+    return "1" + base64.urlsafe_b64encode(payload).decode("ascii")
 
 
 def _parse_proxy(proxy_url: str) -> tuple[object, ...]:

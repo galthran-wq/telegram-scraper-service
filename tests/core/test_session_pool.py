@@ -148,3 +148,26 @@ async def test_discover_session_paths_finds_both_kinds(sessions_dir: Path) -> No
     paths = pool._discover_session_paths(sessions_dir)
     assert any(p.endswith("legacy") for p in paths)
     assert any(p.endswith("new.stringsession") for p in paths)
+
+
+def test_encode_string_session_round_trip() -> None:
+    from src.core.session_pool import AUTH_KEY_BYTES, encode_string_session
+    from telethon.sessions import StringSession
+
+    auth_key_hex = "ab" * AUTH_KEY_BYTES
+    encoded = encode_string_session(auth_key_hex, dc_id=2)
+    assert encoded.startswith("1")
+    session = StringSession(encoded)
+    assert session.dc_id == 2
+    assert session.auth_key is not None
+    assert session.auth_key.key == bytes.fromhex(auth_key_hex)
+
+
+def test_encode_string_session_rejects_bad_inputs() -> None:
+    import pytest as _pytest
+    from src.core.session_pool import encode_string_session
+
+    with _pytest.raises(ValueError, match="Unknown dc_id"):
+        encode_string_session("ab" * 256, dc_id=99)
+    with _pytest.raises(ValueError, match="exactly 256 bytes"):
+        encode_string_session("abcd", dc_id=1)
