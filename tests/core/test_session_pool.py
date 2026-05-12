@@ -150,24 +150,39 @@ async def test_discover_session_paths_finds_both_kinds(sessions_dir: Path) -> No
     assert any(p.endswith("new.stringsession") for p in paths)
 
 
-def test_encode_string_session_round_trip() -> None:
+@pytest.mark.parametrize(
+    ("dc_id", "auth_key_byte"),
+    [(1, "ab"), (2, "01"), (3, "7f"), (4, "ff"), (5, "5c")],
+)
+def test_encode_string_session_round_trip(dc_id: int, auth_key_byte: str) -> None:
     from src.core.session_pool import AUTH_KEY_BYTES, encode_string_session
     from telethon.sessions import StringSession
 
-    auth_key_hex = "ab" * AUTH_KEY_BYTES
-    encoded = encode_string_session(auth_key_hex, dc_id=2)
+    auth_key_hex = auth_key_byte * AUTH_KEY_BYTES
+    encoded = encode_string_session(auth_key_hex, dc_id=dc_id)
     assert encoded.startswith("1")
     session = StringSession(encoded)
-    assert session.dc_id == 2
+    assert session.dc_id == dc_id
     assert session.auth_key is not None
     assert session.auth_key.key == bytes.fromhex(auth_key_hex)
 
 
 def test_encode_string_session_rejects_bad_inputs() -> None:
-    import pytest as _pytest
     from src.core.session_pool import encode_string_session
 
-    with _pytest.raises(ValueError, match="Unknown dc_id"):
+    with pytest.raises(ValueError, match="Unknown dc_id"):
         encode_string_session("ab" * 256, dc_id=99)
-    with _pytest.raises(ValueError, match="exactly 256 bytes"):
+    with pytest.raises(ValueError, match="exactly 256 bytes"):
         encode_string_session("abcd", dc_id=1)
+    with pytest.raises(ValueError, match="non-hexadecimal"):
+        encode_string_session("zz" * 256, dc_id=1)
+
+
+def test_is_auth_key_hex_matches_512_hex_only() -> None:
+    from scripts.add_session import _is_auth_key_hex
+
+    assert _is_auth_key_hex("ab" * 256) is True
+    assert _is_auth_key_hex("AB" * 256) is True
+    assert _is_auth_key_hex("ab" * 255) is False
+    assert _is_auth_key_hex("zz" * 256) is False
+    assert _is_auth_key_hex("1" + "a" * 351) is False
