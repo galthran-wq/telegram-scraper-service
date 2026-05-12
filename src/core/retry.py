@@ -47,7 +47,7 @@ async def with_retry(
                 except Exception:
                     pass
             else:
-                await pool.remove_client(client)
+                await pool.remove_client(client, reason=type(e).__name__)
             last_error = e
         except FloodWaitError as e:
             logger.warning("flood_wait", seconds=e.seconds, attempt=attempt, func=func.__name__)
@@ -61,7 +61,7 @@ async def with_retry(
                 func=func.__name__,
                 sessions_remaining=len(pool._clients) - 1,
             )
-            await pool.remove_client(client)
+            await pool.remove_client(client, reason=type(e).__name__)
             last_error = e
         except UserBannedInChannelError as e:
             logger.warning("user_banned_in_channel", error=str(e), attempt=attempt, func=func.__name__)
