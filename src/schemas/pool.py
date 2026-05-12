@@ -18,3 +18,8 @@ class PoolStatusResponse(BaseModel):
     sessions: list[SessionInfo]
     recent_evictions: list[EvictionEvent]
     rescan_interval: int
+
+
+class PoolRescanResponse(BaseModel):
+    added: int
+    alive: int

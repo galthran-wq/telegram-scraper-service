@@ -49,6 +49,7 @@ class SessionPool:
         self._session_paths: dict[TelegramClient, str] = {}
         self._evictions: deque[dict[str, str]] = deque(maxlen=EVICTION_LOG_SIZE)
         self._rescan_task: asyncio.Task[None] | None = None
+        self._inflight_rescan_paths: set[str] = set()
 
     async def init(self) -> None:
         if settings.proxy:
@@ -130,29 +131,33 @@ class SessionPool:
         tmp = dest.with_suffix(STRING_SESSION_EXT + ".tmp")
 
         async with self._lock:
-            if str(dest) in self._session_paths.values():
+            if str(dest) in self._session_paths.values() or str(dest) in self._inflight_rescan_paths:
                 return {"error": f"session '{name}' already loaded"}
             if dest.exists():
                 return {"error": f"session file '{dest.name}' already exists"}
-
             tmp.write_text(session_str + "\n", encoding="utf-8")
             os.replace(tmp, dest)
+            self._inflight_rescan_paths.add(str(dest))
 
+        try:
             client = await self._connect(str(dest))
             if not client:
                 with contextlib.suppress(OSError):
                     dest.unlink()
                 return {"error": "session failed to authorize"}
-
             try:
                 me = await client.get_me()
                 phone = getattr(me, "phone", None)
                 user_id = getattr(me, "id", None)
-            except Exception as e:
-                logger.warning("get_me_failed", session=name, error=str(e))
+            except Exception:
+                logger.warning("get_me_failed", session=name)
                 phone = None
                 user_id = None
+        finally:
+            async with self._lock:
+                self._inflight_rescan_paths.discard(str(dest))
 
+        async with self._lock:
             self._clients.append(client)
             self._session_paths[client] = str(dest)
             self._cycle = cycle(self._clients)
@@ -168,20 +173,30 @@ class SessionPool:
         async with self._lock:
             known = set(self._session_paths.values())
             discovered = set(self._discover_session_paths(sessions_dir))
-            new_paths = sorted(discovered - known)
-            added = 0
+            new_paths = sorted(discovered - known - self._inflight_rescan_paths)
+            self._inflight_rescan_paths |= set(new_paths)
+
+        connected: list[tuple[str, TelegramClient]] = []
+        try:
             for session_path in new_paths:
                 client = await self._connect(session_path)
-                if not client:
-                    continue
+                if client:
+                    connected.append((session_path, client))
+        finally:
+            async with self._lock:
+                self._inflight_rescan_paths -= set(new_paths)
+
+        if not connected:
+            return 0
+
+        async with self._lock:
+            for session_path, client in connected:
                 self._clients.append(client)
                 self._session_paths[client] = session_path
-                added += 1
                 logger.info("session_loaded", session=Path(session_path).name)
-            if added:
-                self._cycle = cycle(self._clients)
-                logger.info("session_pool_rescanned", added=added, total=len(self._clients))
-        return added
+            self._cycle = cycle(self._clients)
+            logger.info("session_pool_rescanned", added=len(connected), total=len(self._clients))
+        return len(connected)
 
     async def _rescan_loop(self) -> None:
         while True:

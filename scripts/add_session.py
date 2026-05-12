@@ -5,6 +5,8 @@ import asyncio
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from src.config import settings
@@ -14,6 +16,7 @@ from telethon.sessions import StringSession
 
 MIN_LEN = 32
 MAX_LEN = 8192
+RESCAN_URL = "http://127.0.0.1:8000/api/pool/rescan"
 
 
 async def _validate_and_write(name: str, session_str: str) -> dict:
@@ -69,12 +72,22 @@ def main() -> int:
     try:
         result = asyncio.run(_validate_and_write(args.name, session_str))
     except Exception as e:
-        print(json.dumps({"error": f"{type(e).__name__}: {e}"}), file=sys.stderr)
+        print(json.dumps({"error": type(e).__name__}), file=sys.stderr)
         return 1
 
     if "error" in result:
         print(json.dumps(result), file=sys.stderr)
         return 1
+
+    rescan_added: int | None = None
+    try:
+        req = urllib.request.Request(RESCAN_URL, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            rescan_added = json.loads(resp.read()).get("added")
+    except (urllib.error.URLError, OSError, ValueError):
+        rescan_added = None
+
+    result["rescan_added"] = rescan_added
     print(json.dumps(result))
     return 0
 
