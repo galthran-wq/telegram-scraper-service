@@ -40,12 +40,20 @@ async def with_retry(
             return await func(client, *args, **kwargs)
         except (ConnectionError, OSError) as e:
             logger.warning("connection_lost", error=str(e), attempt=attempt, func=func.__name__)
-            reconnected = await pool.reconnect(client)
-            if reconnected:
+            fresh_client = await pool.reconnect(client)
+            if fresh_client is not None:
                 try:
-                    return await func(client, *args, **kwargs)
-                except Exception:
-                    pass
+                    return await func(fresh_client, *args, **kwargs)
+                except Exception as retry_err:
+                    logger.warning(
+                        "post_reconnect_call_failed",
+                        error=str(retry_err),
+                        error_type=type(retry_err).__name__,
+                        attempt=attempt,
+                        func=func.__name__,
+                    )
+                    last_error = retry_err
+                    continue
             else:
                 await pool.remove_client(client, reason=type(e).__name__)
             last_error = e

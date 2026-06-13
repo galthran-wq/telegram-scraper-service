@@ -230,20 +230,45 @@ class SessionPool:
             except Exception:
                 logger.exception("rescan_loop_error")
 
-    async def reconnect(self, client: TelegramClient) -> bool:
+    async def reconnect(self, client: TelegramClient) -> TelegramClient | None:
         session_path = self._session_paths.get(client)
         if not session_path:
-            return False
+            return None
+        session_name = Path(session_path).name
         with contextlib.suppress(Exception):
             await client.disconnect()
         try:
             await client.connect()
             if await client.is_user_authorized():
-                logger.info("session_reconnected", session=Path(session_path).name)
-                return True
+                logger.info("session_reconnected", session=session_name)
+                return client
         except Exception as e:
-            logger.warning("reconnect_failed", session=Path(session_path).name, error=str(e))
-        return False
+            logger.warning("reconnect_failed", session=session_name, error=str(e))
+
+        # Original client's internal state is unrecoverable (telethon's
+        # _sender / connection can land in a None-attr state after eviction
+        # and never accept a fresh connect()). Build a new client from the
+        # on-disk stringsession and atomically swap it into the pool.
+        new_client = await self._connect(session_path)
+        if new_client is None:
+            return None
+        async with self._lock:
+            if client in self._clients:
+                idx = self._clients.index(client)
+                self._clients[idx] = new_client
+                self._session_paths.pop(client, None)
+                self._session_paths[new_client] = session_path
+                self._cycle = cycle(self._clients)
+                logger.info("session_recreated", session=session_name)
+            else:
+                # Caller already evicted the old client; just add the fresh one.
+                self._clients.append(new_client)
+                self._session_paths[new_client] = session_path
+                self._cycle = cycle(self._clients)
+                logger.info("session_recreated_after_eviction", session=session_name)
+        with contextlib.suppress(Exception):
+            await client.disconnect()
+        return new_client
 
     async def close(self) -> None:
         if self._rescan_task:
