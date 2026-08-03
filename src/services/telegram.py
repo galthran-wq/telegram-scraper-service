@@ -79,7 +79,27 @@ async def _resolve_entity(client: TelegramClient, channel: str) -> Any:
         channel_id = int(channel)
     except (ValueError, TypeError):
         return await client.get_entity(channel)
-    return await client.get_entity(channel_id)
+    try:
+        return await client.get_entity(channel_id)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not resolve Telegram entity by numeric id {channel_id}: this session has no cached "
+            f"access_hash for it. Resolve by @username instead, or reach the user via a shared group first. "
+            f"Original error: {e}"
+        ) from e
+
+
+async def resolve_user(client: TelegramClient, user: str) -> dict[str, Any]:
+    logger.info("resolve_user", user=user)
+    entity = await _resolve_entity(client, user)
+    result = {
+        "id": entity.id,
+        "username": getattr(entity, "username", None),
+        "first_name": getattr(entity, "first_name", None),
+        "last_name": getattr(entity, "last_name", None),
+    }
+    logger.info("resolve_user_done", user=user, resolved_id=result["id"])
+    return result
 
 
 async def get_channel_posts(

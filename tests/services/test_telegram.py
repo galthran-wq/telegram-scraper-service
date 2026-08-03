@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.services.telegram import (
     _decode_cursor,
     _encode_cursor,
@@ -9,6 +10,7 @@ from src.services.telegram import (
     _serialize_sender,
     get_channel_posts,
     get_post_comments,
+    resolve_user,
     search_posts,
 )
 from telethon.tl.types import PeerChannel
@@ -114,6 +116,34 @@ class TestResolveEntity:
         client.get_entity = AsyncMock(return_value="resolved")
         await _resolve_entity(client, "testchannel")
         client.get_entity.assert_called_with("testchannel")
+
+    async def test_numeric_not_cached_raises_clear_error(self) -> None:
+        client = AsyncMock()
+        client.get_entity = AsyncMock(
+            side_effect=ValueError("Could not find the input entity for PeerUser(user_id=811277638)")
+        )
+        with pytest.raises(ValueError) as exc:
+            await _resolve_entity(client, "811277638")
+        message = str(exc.value)
+        assert "811277638" in message
+        assert "username" in message.lower()
+
+    async def test_username_error_not_wrapped(self) -> None:
+        client = AsyncMock()
+        client.get_entity = AsyncMock(side_effect=ValueError("No user has "))
+        with pytest.raises(ValueError) as exc:
+            await _resolve_entity(client, "ghost_user")
+        assert "username" not in str(exc.value).lower()
+
+
+class TestResolveUser:
+    async def test_returns_identity_fields(self) -> None:
+        client = AsyncMock()
+        client.get_entity = AsyncMock(return_value=make_mock_user(user_id=42, username="neo", first_name="Thomas"))
+        result = await resolve_user(client, "neo")
+        assert result["id"] == 42
+        assert result["username"] == "neo"
+        assert result["first_name"] == "Thomas"
 
 
 class TestGetChannelPosts:
