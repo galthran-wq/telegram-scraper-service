@@ -2,8 +2,8 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query
 
 from src.core.retry import with_retry
-from src.schemas.telegram import UserProfilePhotosResponse
-from src.services.telegram import get_user_profile_photos
+from src.schemas.telegram import ResolvedUser, UserProfilePhotosResponse
+from src.services.telegram import get_user_profile_photos, resolve_user
 
 logger = structlog.get_logger()
 
@@ -24,4 +24,18 @@ async def user_photos(
         raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error("user_photos_error", user=user, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{user}/resolve", response_model=ResolvedUser)
+async def user_resolve(user: str) -> ResolvedUser:
+    try:
+        info = await with_retry(resolve_user, user)
+        return ResolvedUser(**info)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+    except Exception as e:
+        logger.error("user_resolve_error", user=user, error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
